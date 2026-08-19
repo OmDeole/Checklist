@@ -1,0 +1,11 @@
+{
+  "name": "TPM Digital Checklist & Verification System",
+  "description": "Real-time timestamped, GPS-verified TPM and Pokayoke checklist with direct camera capture and plant-wide station dashboard.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
