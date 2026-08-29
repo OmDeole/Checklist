@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Factory, Smartphone, LayoutDashboard, Clock, MapPin } from 'lucide-react';
+import { ShieldCheck, Factory, Smartphone, LayoutDashboard, Clock, MapPin, UserCheck, Activity } from 'lucide-react';
 import { ShiftName } from '../types';
 import { getCurrentShift, formatTimestamp } from '../utils/geolocation';
 
 interface NavbarProps {
-  currentView: 'dashboard' | 'operator';
-  onViewChange: (view: 'dashboard' | 'operator') => void;
+  currentView: 'dashboard' | 'operator' | 'admin';
+  onViewChange: (view: 'dashboard' | 'operator' | 'admin') => void;
   selectedMinifactoryId: string;
   onMinifactoryChange: (id: string) => void;
   minifactories: Array<{ id: string; name: string }>;
   gpsStatus: { latitude: number; longitude: number; isWithinGeofence: boolean };
+  backendStatus?: 'connected' | 'disconnected' | 'checking';
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -19,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onMinifactoryChange,
   minifactories,
   gpsStatus,
+  backendStatus = 'checking',
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
   const [currentShift, setCurrentShift] = useState<ShiftName>(getCurrentShift());
@@ -74,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             })}
           </div>
 
-          {/* Live Shift & Clock */}
+          {/* Live Shift & Clock + Backend Status */}
           <div className="hidden md:flex items-center gap-3 text-xs border-l border-r border-slate-200 px-3 py-1">
             <div className="flex items-center gap-1.5 text-amber-800 font-mono bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
               <Clock className="w-3.5 h-3.5 text-amber-600" />
@@ -90,6 +92,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}>
               <MapPin className="w-3 h-3 shrink-0" />
               <span className="font-mono">GPS Locked</span>
+            </div>
+            {/* MinIO / Backend connection indicator */}
+            <div className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border ${
+              backendStatus === 'connected'
+                ? 'bg-violet-50 border-violet-200 text-violet-700'
+                : backendStatus === 'checking'
+                ? 'bg-slate-50 border-slate-200 text-slate-500'
+                : 'bg-rose-50 border-rose-200 text-rose-600'
+            }`}>
+              <Activity className="w-3 h-3 shrink-0" />
+              <span className="font-mono">
+                {backendStatus === 'connected' ? 'API ✓' : backendStatus === 'checking' ? 'API...' : 'Offline'}
+              </span>
             </div>
           </div>
 
@@ -119,6 +134,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Fill Checklist</span>
+              </button>
+
+              <button
+                onClick={() => onViewChange('admin')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                  currentView === 'admin'
+                    ? 'bg-violet-500 text-white shadow-sm font-bold hover:bg-violet-400'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Coordinator Portal</span>
+                <span className="sm:hidden">Admin</span>
               </button>
             </div>
           </div>

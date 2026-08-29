@@ -3,7 +3,6 @@
 > **Document Version:** 1.0.0  
 > **Status:** Proposed Technical Specification & Architecture Design  
 > **Target Environment:** On-Premises Company Local Server + Shopfloor Mobile/Tablet Clients (Air-Gapped & Secure)
-
 ---
 
 ## 1. Architectural Overview & System Design

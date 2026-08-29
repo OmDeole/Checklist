@@ -1,0 +1,71 @@
+{
+  "module": {
+    "appId": "kspg-tpm-checklist",
+    "displayName": "TPM Smart Verify",
+    "version": "1.0.0",
+    "description": "Digital Shopfloor TPM Verification with AI-powered gauge validation and MinIO evidence storage",
+    "parentMountPath": "/apps/tpm-checklist",
+    "icon": "ShieldCheck"
+  },
+  "storage": {
+    "provider": "minio",
+    "endpoint": "http://127.0.0.1:9000",
+    "bucket": "tpm-evidence",
+    "region": "us-east-1",
+    "accessKey": "minioadmin",
+    "secretKey": "minioadmin",
+    "useSSL": false,
+    "publicBaseUrl": "http://127.0.0.1:9000/tpm-evidence",
+    "objectPrefix": "evidence/",
+    "maxFileSizeMB": 10,
+    "allowedMimeTypes": ["image/jpeg", "image/png", "image/webp"]
+  },
+  "server": {
+    "port": 3001,
+    "host": "0.0.0.0",
+    "corsOrigins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+    "apiPrefix": "/api"
+  },
+  "routes": {
+    "config": "/api/config",
+    "health": "/api/health",
+    "minifactories": "/api/minifactories",
+    "submitChecklist": "/api/checklists/submit",
+    "submissions": "/api/submissions",
+    "deviations": "/api/deviations",
+    "deviationPatch": "/api/deviations/:id",
+    "adminAudit": "/api/admin/audit",
+    "adminOperators": "/api/admin/operators",
+    "adminExport": "/api/admin/export",
+    "aiVerifyGauge": "/api/ai/verify-gauge"
+  },
+  "ai": {
+    "enabled": true,
+    "provider": "gemini",
+    "gaugeVerification": {
+      "tolerances": {
+        "airPressure": { "min": 4, "max": 6, "unit": "bar" },
+        "cylinderPressure": { "min": 0.2, "max": 0.4, "unit": "Mpa" }
+      },
+      "confidenceThreshold": 0.75
+    }
+  },
+  "auth": {
+    "headerSchemas": {
+      "userId": "X-KSPG-User-Id",
+      "role": "X-KSPG-Role",
+      "sessionToken": "X-KSPG-Session-Token"
+    },
+    "roles": ["operator", "coordinator", "admin", "plant-head"],
+    "defaultRole": "operator"
+  },
+  "dataStore": {
+    "type": "json-file",
+    "basePath": "./data",
+    "files": {
+      "submissions": "submissions.json",
+      "deviations": "deviations.json",
+      "stationState": "station_state.json"
+    }
+  }
+}

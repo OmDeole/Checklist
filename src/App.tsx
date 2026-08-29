@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Minifactory, Station } from './types';
 import { INITIAL_MINIFACTORIES } from './data/initialData';
 import { Navbar } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
 import { OperatorChecklist } from './components/OperatorChecklist';
+import { CoordinatorAdmin } from './components/CoordinatorAdmin';
 import { requestCurrentLocation } from './utils/geolocation';
 import { ShieldCheck, CheckCircle2, AlertTriangle, X, Smartphone, Wifi, Battery, Signal, Radio } from 'lucide-react';
+
+const BACKEND_URL = 'http://localhost:3001';
 
 export default function App() {
   // Load initial minifactories from localStorage or default
@@ -21,9 +24,10 @@ export default function App() {
     return INITIAL_MINIFACTORIES;
   });
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'operator'>('operator');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'operator' | 'admin'>('operator');
   const [selectedMinifactoryId, setSelectedMinifactoryId] = useState<string>('MF2'); // Default to MF2 as requested
   const [isMobileMode, setIsMobileMode] = useState<boolean>(false);
+  const [backendStatus, setBackendStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
 
   const [gpsStatus, setGpsStatus] = useState({
     latitude: 18.52043,
@@ -57,6 +61,47 @@ export default function App() {
     });
   }, []);
 
+  // ─── Backend Health Check ────────────────────────────────────────
+  const checkBackendHealth = useCallback(async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/health`, { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        setBackendStatus('connected');
+      } else {
+        setBackendStatus('disconnected');
+      }
+    } catch {
+      setBackendStatus('disconnected');
+    }
+  }, []);
+
+  useEffect(() => {
+    checkBackendHealth();
+    // Re-check every 30 seconds
+    const interval = setInterval(checkBackendHealth, 30000);
+    return () => clearInterval(interval);
+  }, [checkBackendHealth]);
+
+  // ─── Backend Sync on Submission ──────────────────────────────────
+  const syncSubmissionToBackend = async (submission: any) => {
+    if (backendStatus !== 'connected') return;
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/checklists/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submission),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        console.log(`✓ Synced to backend: ${result.submissionId} (${result.photosUploaded} photos uploaded)`);
+      }
+    } catch (err) {
+      console.warn('Backend sync failed (will retry later):', err);
+    }
+  };
+
   // Update a station when an operator submits a checklist
   const handleStationSubmitSuccess = (updatedStation: Station, submissionHash: string) => {
     setMinifactories((prev) =>
@@ -78,6 +123,29 @@ export default function App() {
         return mf;
       })
     );
+
+    // Sync submission to backend (non-blocking)
+    const submissionPayload = {
+      minifactoryId: updatedStation.minifactoryId,
+      lineId: updatedStation.lineId,
+      stationId: updatedStation.id,
+      stationNumber: updatedStation.number,
+      lineName: updatedStation.lineName,
+      operatorName: updatedStation.operatorName || '',
+      operatorId: updatedStation.operatorId || '',
+      shift: updatedStation.shift,
+      completedAt: updatedStation.lastSubmittedAt || new Date().toISOString(),
+      timeTakenSeconds: 0,
+      location: gpsStatus,
+      machineCheckpoints: updatedStation.machineCheckpoints,
+      pokayokeCheckpoints: updatedStation.pokayokeCheckpoints,
+      deviations: updatedStation.deviations,
+      overallStatus: updatedStation.status === 'DEVIATION_STOPPED' ? 'DEVIATION' : 'OK',
+      verificationHash: submissionHash,
+      isAuthentic: !updatedStation.isFlaggedForFalsification,
+    };
+
+    syncSubmissionToBackend(submissionPayload);
 
     // Show Toast
     setToastMessage({
@@ -107,6 +175,7 @@ export default function App() {
         onMinifactoryChange={setSelectedMinifactoryId}
         minifactories={minifactories.map((m) => ({ id: m.id, name: m.name }))}
         gpsStatus={gpsStatus}
+        backendStatus={backendStatus}
       />
 
       {/* Main Content Area */}
@@ -117,6 +186,11 @@ export default function App() {
             selectedMinifactoryId={selectedMinifactoryId}
             onMinifactoryChange={setSelectedMinifactoryId}
             onNavigateToChecklist={handleNavigateToChecklist}
+          />
+        ) : currentView === 'admin' ? (
+          <CoordinatorAdmin
+            minifactories={minifactories}
+            selectedMinifactoryId={selectedMinifactoryId}
           />
         ) : (
           <OperatorChecklist
